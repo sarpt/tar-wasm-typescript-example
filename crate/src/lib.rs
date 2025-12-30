@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::{io::{BufReader, ErrorKind, Read}};
+use std::io::{BufReader, ErrorKind, Read};
 
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::console;
@@ -25,19 +25,19 @@ fn main() {
     let mut entries: Vec<Entry> = Vec::new();
     let mut entry_offset = 0;
     loop {
-      console::log_1(&format!("[WASM] entry offset: {entry_offset}", ).into());
+      console::log_1(&format!("[WASM] entry offset: {entry_offset}",).into());
 
       if entry_offset >= payload.len() {
-          break;
+        break;
       }
 
       if entry_offset + TAR_HEADER_LEN >= payload.len() {
-          return Err(TarErrors::DamagedHeader);
+        return Err(TarErrors::DamagedHeader);
       }
 
-
-      let filename =
-          String::from_utf8_lossy(&payload[entry_offset..entry_offset + FILENAME_LEN]).trim_end_matches('\0').to_string();
+      let filename = String::from_utf8_lossy(&payload[entry_offset..entry_offset + FILENAME_LEN])
+        .trim_end_matches('\0')
+        .to_string();
       if filename.is_empty() {
         // tar files are ending with an empty heading (all zeroes), so assumption is that empty
         // filename equal empty header, hence end of file. may not be correct but that doesnt
@@ -46,36 +46,46 @@ fn main() {
       }
 
       let entry_data_size = usize::from_str_radix(
-          String::from_utf8_lossy(
-              &payload[entry_offset + FILE_SIZE_OFFSET
-                  ..entry_offset + FILE_SIZE_OFFSET + FILE_SIZE_LEN],
-          ).trim_end_matches('\0'),
-          8,
+        String::from_utf8_lossy(
+          &payload
+            [entry_offset + FILE_SIZE_OFFSET..entry_offset + FILE_SIZE_OFFSET + FILE_SIZE_LEN],
+        )
+        .trim_end_matches('\0'),
+        8,
       )
       .map_err(|_| TarErrors::SizeUnreadable)?;
-      let payload: Vec<u8> = Vec::from(&payload[entry_offset + TAR_HEADER_LEN..entry_offset + TAR_HEADER_LEN + entry_data_size]);
-      entries.push(Entry { variant: EntryType::NormalFile, filename, size: entry_data_size, payload });
-      entry_offset += TAR_HEADER_LEN + entry_data_size.div_ceil(FILE_ENTRY_PADDING_BASE) * FILE_ENTRY_PADDING_BASE;
+      let payload: Vec<u8> = Vec::from(
+        &payload[entry_offset + TAR_HEADER_LEN..entry_offset + TAR_HEADER_LEN + entry_data_size],
+      );
+      entries.push(Entry {
+        variant: EntryType::NormalFile,
+        filename,
+        size: entry_data_size,
+        payload,
+      });
+      entry_offset += TAR_HEADER_LEN
+        + entry_data_size.div_ceil(FILE_ENTRY_PADDING_BASE) * FILE_ENTRY_PADDING_BASE;
     }
 
-    let tar = Tar {
-        entries,
-    };
+    let tar = Tar { entries };
     Ok(tar)
   }
 }
 
-
 #[wasm_bindgen]
 pub struct Tar {
-    entries: Vec<Entry>,
+  entries: Vec<Entry>,
 }
 
 #[wasm_bindgen]
 impl Tar {
   #[wasm_bindgen]
   pub fn get_filenames(&self) -> Vec<String> {
-    self.entries.iter().map(|entry| entry.filename.clone()).collect()  
+    self
+      .entries
+      .iter()
+      .map(|entry| entry.filename.clone())
+      .collect()
   }
 
   #[wasm_bindgen]
@@ -88,32 +98,32 @@ impl Tar {
 }
 
 pub struct Entry {
-    variant: EntryType,
-    filename: String,
-    size: usize,
-    payload: Vec<u8>,
+  variant: EntryType,
+  filename: String,
+  size: usize,
+  payload: Vec<u8>,
 }
 
 #[derive(Copy, Clone)]
 pub enum EntryType {
-    NormalFile,
-    HardLink,
-    SymbolicLink,
-    CharacterSpecial,
-    BlockSpecial,
-    Directory,
-    FIFO,
-    Contagious,
-    GlobalExtenderHeaderMetadata,
-    NextFileExtenderHeaderMetadata,
-    VendorSpecificExtension,
+  NormalFile,
+  HardLink,
+  SymbolicLink,
+  CharacterSpecial,
+  BlockSpecial,
+  Directory,
+  FIFO,
+  Contagious,
+  GlobalExtenderHeaderMetadata,
+  NextFileExtenderHeaderMetadata,
+  VendorSpecificExtension,
 }
 
 #[wasm_bindgen]
 #[derive(Copy, Clone)]
 pub enum TarErrors {
-    NotATarFile = "Not a tar file",
-    DamagedHeader = "File header could not be read",
-    SizeUnreadable = "Could not read file entry size",
-    FileNotFound = "File with provided filename could not be found",
+  NotATarFile = "Not a tar file",
+  DamagedHeader = "File header could not be read",
+  SizeUnreadable = "Could not read file entry size",
+  FileNotFound = "File with provided filename could not be found",
 }
